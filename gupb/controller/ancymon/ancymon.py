@@ -3,6 +3,8 @@ import random
 from gupb import controller
 from gupb.model import arenas, characters
 from gupb.model.weapons import Knife
+from gupb.model import tiles
+from gupb.model import coordinates
 
 POSSIBLE_ACTIONS = [
     characters.Action.TURN_LEFT,
@@ -10,6 +12,8 @@ POSSIBLE_ACTIONS = [
     characters.Action.STEP_FORWARD,
     characters.Action.ATTACK,
 ]
+
+# PRIORITY_LIST = {1: "consumable", 2: "character", 3: "loot", 4: "type"}
 
 
 class AncymonController(controller.Controller):
@@ -20,6 +24,7 @@ class AncymonController(controller.Controller):
         self.position = None
         self.menhir = None
         self.weapon = Knife
+        # self.priority_neighbors = None
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, AncymonController):
@@ -34,6 +39,8 @@ class AncymonController(controller.Controller):
         self.champion = knowledge.visible_tiles[knowledge.position].character
         self.update_discovered_map(knowledge.visible_tiles)
 
+        # self.priority_neighbors = self.check_surrounding()
+        # # if not self.priority_neighbors:
         new_position = self.position + self.champion.facing.value
         if self.collect_loot(new_position):
             return POSSIBLE_ACTIONS[2]
@@ -54,6 +61,9 @@ class AncymonController(controller.Controller):
 
     def can_move_forward(self):
         new_position = self.position + self.champion.facing.value
+
+        if self.is_mist(new_position):
+            return False
         return (
             self.discovered_map[new_position].type == "land"
             and not self.discovered_map[new_position].character
@@ -77,8 +87,44 @@ class AncymonController(controller.Controller):
 
     def collect_loot(self, new_position):
         return (
-            self.discovered_map[new_position].loot and self.weapon == "Knife"
+            self.discovered_map[new_position].loot and self.weapon == Knife
         ) or self.discovered_map[new_position].consumable
+
+    # freezes when stuck in mist
+    def is_mist(self, new_position):
+        tile = self.discovered_map[new_position].effects
+        if tile:
+            effect = tile[0].type
+            if effect == "mist":
+                return True
+        return False
+
+    # def check_surrounding(self):
+    #     tile = self.position
+
+    #     neighbourhood = [
+    #         coordinates.Coords(tile.x, tile.y + 1),
+    #         coordinates.Coords(tile.x + 1, tile.y + 1),
+    #         coordinates.Coords(tile.x + 1, tile.y),
+    #         coordinates.Coords(tile.x + 1, tile.y - 1),
+    #         coordinates.Coords(tile.x, tile.y - 1),
+    #         coordinates.Coords(tile.x - 1, tile.y - 1),
+    #         coordinates.Coords(tile.x - 1, tile.y),
+    #         coordinates.Coords(tile.x - 1, tile.y - 1),
+    #     ]
+    #     neighbours = {}
+
+    #     for neighbour in neighbourhood:
+    #         new_position = tile + neighbour
+    #         if new_position in self.discovered_map:
+    #             tile_description = self.discovered_map[new_position]
+    #             neighbours[neighbour] = tile_description
+
+    #     sorted_neighbours = sorted(neighbours.items(), key=lambda x: x[1], reverse=True)
+
+    #     if sorted_neighbours:
+    #         return sorted_neighbours[0]
+    #     return None
 
     def praise(self, score: int) -> None:
         pass
